@@ -2,10 +2,13 @@ package dev.oaiqiy.gui;
 
 import dev.oaiqiy.gobang.ByteBoard;
 import dev.oaiqiy.gobang.Role;
+import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Line;
 import lombok.Data;
+
+import java.util.function.Predicate;
 
 @Data
 public class BoardComponent extends Pane {
@@ -68,8 +71,6 @@ public class BoardComponent extends Pane {
 
 
 
-
-
         });
     }
 
@@ -80,5 +81,15 @@ public class BoardComponent extends Pane {
         getChildren().add(pawn);
     }
 
+    public void clear(){
+        getChildren().removeIf(node -> node.getClass() != Line.class);
+    }
 
+    public void setPlayerRole(int playerRole) {
+        this.playerRole = playerRole;
+        playerRound = playerRole != Role.ROLE_WHITE;
+        clear();
+        App.restart = true;
+        App.playRole = playerRole;
+    }
 }

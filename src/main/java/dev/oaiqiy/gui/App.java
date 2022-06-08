@@ -2,21 +2,22 @@ package dev.oaiqiy.gui;
 
 import dev.oaiqiy.gobang.*;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
 import javafx.scene.control.Label;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.*;
 
 @Slf4j
 public class App {
     public static BlockingQueue<int[]> playerQueue = new ArrayBlockingQueue<>(1);
+    public static volatile boolean restart = false;
+    public static volatile int playRole = Role.ROLE_WHITE;
 
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
 
-        Board board = new ByteBoard();
+
         new Thread(() -> MainDisplay.main(args)).start();
 
         Thread.sleep(2000);
@@ -24,37 +25,63 @@ public class App {
         AlphaBetaSearch search = new AlphaBetaSearch();
         TraversalEvaluation evaluation = new TraversalEvaluation();
 
-        int computerRole = Role.ROLE_WHITE;
+        while(true){
 
-        if(computerRole == Role.ROLE_BLACK)
-            board = uiPut(new int[]{board.getWidth()/2,board.getWidth()/2},computerRole,board);
-        else{
-            MainDisplay.boardComponent.setPlayerRole(Role.ROLE_BLACK);
-            MainDisplay.boardComponent.setPlayerRound(true);
-        }
+            log.info("new game");
+            Board board = new ByteBoard();
+            int computerRole = Role.reverseRole(playRole);
 
-        while (true){
-            int[] next = playerQueue.take();
-            board = board.dropPawn(next, Role.reverseRole(computerRole));
+            if(computerRole == Role.ROLE_BLACK)
+                board = uiPut(new int[]{board.getWidth()/2,board.getWidth()/2},computerRole,board);
+            restart = false;
 
-             int result = evaluation.judgeWinner(board);
-             if(result != 0){
-                 stopGame( result);
-                 break;
-             }
+            Game:
+            while (true){
+                while(playerQueue.peek() == null){
+                    if(restart)
+                        break Game;
+                    Thread.sleep(100);
+                }
 
+                Task<int[]> task = new Task<>() {
+                    @Override
+                    protected int[] call() throws Exception {
+                        return playerQueue.take();
+                    }
+                };
 
-            int[] comNext = search.search(board, computerRole);
-            log.info("computer step  " + comNext[0] +"  " + comNext[1]);
+                new Thread(task).start();
 
-            board = uiPut(comNext, computerRole, board);
+                while(task.isRunning()){
+                    if(restart)
+                        break Game;
+                    Thread.sleep(100);
+                }
 
-            result = evaluation.judgeWinner(board);
-            if(result != 0){
-                stopGame(result);
-                break;
+                int[] next = task.get();
+
+                board = board.dropPawn(next, Role.reverseRole(computerRole));
+
+                int result = evaluation.judgeWinner(board);
+                if(result != 0){
+                    stopGame(result);
+                    break;
+                }
+
+                int[] comNext = search.search(board, computerRole);
+                log.info("computer step  " + comNext[0] +"  " + comNext[1]);
+
+                board = uiPut(comNext, computerRole, board);
+
+                result = evaluation.judgeWinner(board);
+                if(result != 0){
+                    stopGame(result);
+                    break;
+                }
             }
         }
+
+
 
 
     }
