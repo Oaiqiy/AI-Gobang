@@ -1,6 +1,8 @@
 package dev.oaiqiy.gobang;
 
 
+import java.util.Deque;
+
 public interface Board {
     int[][] nextPawns();
 
@@ -13,10 +15,15 @@ public interface Board {
     Board dropBlack(int x, int y);
     Board dropBlack(int[] location);
 
+    Board dropPawn(int x, int y, int role);
+    Board dropPawn(int[] location, int role);
+
     int getPawn(int x, int y);
     int getPawn(int[] location);
 
     int getWidth();
+
+    Deque<int[]> generateNext();
 
 
 }

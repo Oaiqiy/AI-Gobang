@@ -1,32 +1,27 @@
 package dev.oaiqiy.gobang;
 
-import dev.oaiqiy.gobang.Board;
-import dev.oaiqiy.gobang.Evaluation;
-
-import java.lang.invoke.VarHandle;
-import java.net.http.HttpConnectTimeoutException;
-import java.net.http.HttpHeaders;
-import java.nio.channels.SelectionKey;
-
-public class TraversalEvaluation implements Evaluation {
+public class TraversalEvaluation{
     private final static int radius = 8;
     private final static int[][] dirs = new int[][]{{1,0},{0,1},{1,1},{1,-1}};
 
-    @Override
+
     public int calculateBoardScore(Board board, int role) {
         final int width = board.getWidth();
         int roleScore = 0,competitorScore = 0;
 
-        int sum = 0;
         for(int i = 0;i<width;i++)
-            for(int j = 0;j<width;j++)
-                sum += calculatePawnScore(board,i,j,role);
+            for(int j = 0;j<width;j++){
+               roleScore += calculatePawnScore(board,i,j,role);
+               competitorScore += calculatePawnScore(board,i,j,Role.reverseRole(role));
+            }
 
-        return sum;
+        return roleScore - competitorScore;
     }
 
-    @Override
+
     public int calculatePawnScore(Board board, int x, int y, int role) {
+        if(board.getPawn(x,y) != role)
+            return 0;
 
         final int width = board.getWidth();
 
@@ -35,13 +30,13 @@ public class TraversalEvaluation implements Evaluation {
         for(var dir: dirs){
             int count = 1, block = 0,empty = -1;
 
-            for(int i = x + dir[0],j=y+dir[1];true;i+= dir[0],j+=y+dir[1]){
+            for(int i = x + dir[0],j=y+dir[1];true;i+= dir[0],j+=dir[1]){
                 if(!checkBorder(i,j,width)){
                     block++;
                     break;
                 }
 
-                int pawn = board.getPawn(x,y);
+                int pawn = board.getPawn(i,j);
 
                 if(pawn == Role.ROLE_EMPTY){
                     if(empty == -1 && checkBorder(i + dir[0],j + dir[1] ,width) && board.getPawn(i + dir[0], j + dir[1]) == role){
@@ -66,7 +61,7 @@ public class TraversalEvaluation implements Evaluation {
                     break;
                 }
 
-                int pawn = board.getPawn(x,y);
+                int pawn = board.getPawn(i,j);
 
                 if(pawn == Role.ROLE_EMPTY){
                     if(empty == -1 && checkBorder(i-dir[0] ,j-dir[1],width) && board.getPawn(i-dir[0],j-dir[1]) == role){
@@ -94,6 +89,18 @@ public class TraversalEvaluation implements Evaluation {
 
 
         return sum;
+    }
+
+    public int judgeWinner(Board board){
+        for(int i = 0;i<board.getWidth();i++)
+            for(int j = 0;j<board.getWidth();j++){
+                if(calculatePawnScore(board, i,j,Role.ROLE_WHITE) >= Score.FIVE)
+                    return Role.ROLE_WHITE;
+                else if(calculatePawnScore(board, i, j,Role.ROLE_BLACK) >= Score.FIVE)
+                    return Role.ROLE_BLACK;
+            }
+
+        return 0;
     }
 
     private boolean checkBorder(int x, int y, int width){
